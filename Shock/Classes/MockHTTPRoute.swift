@@ -17,6 +17,13 @@ public enum MockHTTPRoute {
         filename: String?
     )
     
+    case simple_partial(
+        method: MockHTTPMethod,
+        urlPath: String,
+        code: Int,
+        filename: String?
+    )
+    
     case custom(
         method: MockHTTPMethod,
         urlPath: String,
@@ -55,6 +62,7 @@ public enum MockHTTPRoute {
     public var urlPath: String? {
         switch self {
         case .simple(_, let urlPath, _, _),
+             .simple_partial(_, let urlPath, _, _),
              .custom(_, let urlPath, _, _, _, _, _),
              .template(_, let urlPath, _, _, _),
              .redirect(let urlPath, _),
@@ -68,6 +76,7 @@ public enum MockHTTPRoute {
     public var method: MockHTTPMethod? {
         switch self {
         case .simple(let method, _, _, _),
+             .simple_partial(let method, _, _, _),
              .custom(let method, _, _, _, _, _, _),
              .template(let method, _, _, _, _),
              .timeout(let method, _, _):
@@ -83,7 +92,7 @@ public enum MockHTTPRoute {
         switch self {
         case .custom(_, _, _, let headers, _, _, _):
             return headers
-        case .simple, .template, .redirect, .collection, .timeout:
+        case .simple, .simple_partial, .template, .redirect, .collection, .timeout:
             return nil
         }
     }
@@ -92,7 +101,7 @@ public enum MockHTTPRoute {
         switch self {
         case .custom(_, _, let query, _, _, _, _):
             return query
-        case .simple, .template, .redirect, .collection, .timeout:
+        case .simple, .simple_partial, .template, .redirect, .collection, .timeout:
             return nil
         }
     }
@@ -125,6 +134,7 @@ public enum MockHTTPRoute {
         switch self {
         case .custom(_, _, _, _, _, _, let filename),
              .simple(_, _, _, let filename),
+             .simple_partial(_, _, _, let filename),
              .template(_, _, _, let filename, _):
             return filename
         default:
@@ -154,11 +164,15 @@ public enum MockHTTPRoute {
 
 /// The philosophy for Equatable/Hashable `MockHTTPRoute` is anything in the request
 /// part of the route (e.g. `method` or `urlPath`) are part of the identify of the route
-extension MockHTTPRoute: Equatable {    
+extension MockHTTPRoute: Equatable {
     public static func == (lhs: MockHTTPRoute, rhs: MockHTTPRoute) -> Bool {
         if case MockHTTPRoute.simple(let lhsMethod, let lhsUrlPath, let _, _) = lhs,
            case MockHTTPRoute.simple(let rhsMethod, let rhsUrlPath, let _, _) = rhs {
             return lhsMethod == rhsMethod && lhsUrlPath.pathMatches(rhsUrlPath)
+        }
+        if case MockHTTPRoute.simple_partial(let lhsMethod, let lhsUrlPath, let _, _) = lhs,
+           case MockHTTPRoute.simple_partial(let rhsMethod, let rhsUrlPath, let _, _) = rhs {
+            return lhsMethod == rhsMethod && lhsUrlPath.contains(rhsUrlPath)
         }
         if case MockHTTPRoute.custom(let lhsMethod, let lhsUrlPath, let lhsQuery, let lhsRequestHeaders, _, _, _) = lhs,
            case MockHTTPRoute.custom(let rhsMethod, let rhsUrlPath, let rhsQuery, let rhsRequestHeaders, _, _, _) = rhs {
@@ -210,6 +224,8 @@ extension MockHTTPRoute: Equatable {
         switch self {
         case .simple:
             return MockHTTPRoute.simple(method: method, urlPath: path, code: 0, filename: nil) == self
+        case .simple_partial:
+            return MockHTTPRoute.simple_partial(method: method, urlPath: path, code: 0, filename: nil) == self
         case .custom:
             return MockHTTPRoute.custom(method: method, urlPath: path, query: params, requestHeaders: headers, responseHeaders: [:], code: 0, filename: nil) == self
         case .template:
